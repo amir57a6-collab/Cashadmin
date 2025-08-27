@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Task List</title>
+    <style>@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');body{font-family:'Inter',sans-serif;background-color:#111827;color:#d1d5db;margin:0}.loading-spinner{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);border:4px solid #374151;border-top:4px solid #10b981;border-radius:50%;width:40px;height:40px;animation:spin 1s linear infinite}.content-wrapper{display:none}.container{display:flex;min-height:100vh}.sidebar{width:250px;background-color:#1f2937;padding:1.5rem}.sidebar-header{font-size:1.5rem;font-weight:700;color:#fff;margin-bottom:2rem}.sidebar-nav a{display:block;color:#9ca3af;text-decoration:none;padding:.75rem 1rem;border-radius:.5rem;margin-bottom:.5rem;font-weight:500}.sidebar-nav a.active{background-color:#10b981;color:#fff}.main-content{flex:1;padding:2.5rem;overflow-y:auto}.main-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:2rem}.main-header h1{font-size:2rem;font-weight:700;color:#fff;margin:0}.btn{background-color:#10b981;color:#fff;border:none;padding:.75rem 1.5rem;border-radius:.5rem;cursor:pointer;font-weight:600;text-decoration:none}.data-table{width:100%;border-collapse:collapse;background-color:#1f2937;margin-top:1.5rem;border-radius:.75rem;overflow:hidden}.data-table td,.data-table th{padding:1rem 1.5rem;text-align:left}.data-table thead{background-color:#374151}.data-table th{font-weight:600;color:#fff}.data-table tbody tr{border-bottom:1px solid #374151}.action-btn{color:#fff;border:none;padding:.5rem 1rem;border-radius:.5rem;cursor:pointer;text-decoration:none;font-size:0.875rem;}.edit-btn{background-color:#3b82f6;margin-right:0.5rem}.delete-btn{background-color:#ef4444}@keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}</style>
+</head>
+<body>
+    <div class="loading-spinner" id="loader"></div>
+    <div class="content-wrapper" id="content">
+        <div class="container">
+            <aside class="sidebar">
+                <h1 class="sidebar-header">Task Manager</h1>
+                <nav class="sidebar-nav">
+                    <a href="dashboard.html">Dashboard</a><a href="users.html">Users</a><a href="manage-tasks.html">Create Task</a><a href="task-list.html" class="active">Task List</a><a href="withdrawals.html">Withdrawals</a><a href="settings.html">Settings</a>
+                </nav>
+            </aside>
+            <main class="main-content">
+                <header class="main-header"><h1>Task List</h1><a href="manage-tasks.html" class="btn">Create New Task</a></header>
+                <table class="data-table">
+                    <thead><tr><th>Title</th><th>Reward</th><th>Category</th><th>Actions</th></tr></thead>
+                    <tbody id="tasks-table-body"></tbody>
+                </table>
+            </main>
+        </div>
+    </div>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
+        import { getFirestore, collection, getDocs, orderBy, query, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+        const firebaseConfig = { apiKey: "AIzaSyBNy8sZGAKh3Ika7O7F-NLZZZWAU-j2B0A", authDomain: "cashcoinser.firebaseapp.com", projectId: "cashcoinser", storageBucket: "cashcoinser.appspot.com", messagingSenderId: "179560740788", appId: "1:179560740788:web:4d6f5678e80f86899364e1" };
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const ADMIN_EMAIL = "amir57a6@gmail.com";
+        const loader = document.getElementById('loader'), content = document.getElementById('content'), tableBody = document.getElementById('tasks-table-body');
+        onAuthStateChanged(auth, user => {
+            if (user && user.email === ADMIN_EMAIL) { loadTasks(); loader.style.display = 'none'; content.style.display = 'block'; } else { window.location.href = 'index.html'; }
+        });
+        async function loadTasks() {
+            tableBody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:2rem;">Loading tasks...</td></tr>`;
+            const q = query(collection(db, "tasks"), orderBy("createdAt", "desc"));
+            const querySnapshot = await getDocs(q);
+            if (querySnapshot.empty) { tableBody.innerHTML = `<tr><td colspan="4" style="text-align:center;">No tasks found.</td></tr>`; return; }
+            let rowsHtml = '';
+            querySnapshot.forEach(doc => {
+                const task = doc.data();
+                rowsHtml += `<tr><td>${task.title}</td><td>$${task.reward.toFixed(2)}</td><td>${task.category}</td><td><a href="edit-task.html?id=${doc.id}" class="action-btn edit-btn">Edit</a><button class="action-btn delete-btn" data-id="${doc.id}">Delete</button></td></tr>`;
+            });
+            tableBody.innerHTML = rowsHtml;
+        }
+        tableBody.addEventListener('click', async (e) => {
+            if (e.target.classList.contains('delete-btn')) {
+                const taskId = e.target.dataset.id;
+                if (confirm('Are you sure you want to delete this task permanently?')) {
+                    try { await deleteDoc(doc(db, "tasks", taskId)); alert("Task deleted!"); loadTasks(); } catch (error) { alert("Failed to delete task."); }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Admin Settings</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body{font-family:'Inter',sans-serif;background-color:#111827;color:#d1d5db;margin:0}
+        .loading-spinner{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);border:4px solid #374151;border-top:4px solid #10b981;border-radius:50%;width:40px;height:40px;animation:spin 1s linear infinite}
+        .content-wrapper{display:none}
+        .container{display:flex;min-height:100vh}
+        .sidebar{width:250px;background-color:#1f2937;padding:1.5rem}
+        .sidebar-header{font-size:1.5rem;font-weight:700;color:#fff;margin-bottom:2rem}
+        .sidebar-nav a{display:block;color:#9ca3af;text-decoration:none;padding:.75rem 1rem;border-radius:.5rem;margin-bottom:.5rem;font-weight:500}
+        .sidebar-nav a.active{background-color:#10b981;color:#fff}
+        .main-content{flex:1;padding:2.5rem;overflow-y:auto}
+        .main-header h1{font-size:2rem;font-weight:700;color:#fff;margin:0}
+        .form-container{background-color:#1f2937;padding:2rem;border-radius:.75rem;margin-top:2rem;max-width:500px}
+        .form-group{margin-bottom:1.5rem}
+        .form-group label{display:block;font-weight:500;color:#9ca3af;margin-bottom:.5rem}
+        .form-group input{width:100%;padding:.75rem;background-color:#374151;border:1px solid #4b5563;border-radius:.5rem;color:#d1d5db;box-sizing:border-box}
+        .submit-btn{background-color:#10b981;color:#fff;border:none;padding:.75rem 1.5rem;border-radius:.5rem;cursor:pointer;font-weight:600}
+        @keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+    </style>
+</head>
+<body>
+    <div class="loading-spinner" id="loader"></div>
+    <div class="content-wrapper" id="content">
+        <div class="container">
+            <aside class="sidebar">
+                <h1 class="sidebar-header">Task Manager</h1>
+                <nav class="sidebar-nav">
+                    <a href="dashboard.html">Dashboard</a><a href="users.html">Users</a>
+                    <a href="manage-tasks.html">Create Task</a><a href="task-list.html">Task List</a>
+                    <a href="withdrawals.html">Withdrawals</a><a href="settings.html" class="active">Settings</a>
+                </nav>
+            </aside>
+            <main class="main-content">
+                <header class="main-header"><h1>Settings</h1></header>
+                <form class="form-container" id="settings-form">
+                    <h2>Referral Settings</h2>
+                    <div class="form-group">
+                        <label for="referral-bonus">Referral Bonus Amount ($)</label>
+                        <input type="number" id="referral-bonus" step="0.01" required>
+                    </div>
+                    <button type="submit" class="submit-btn">Save Settings</button>
+                </form>
+            </main>
+        </div>
+    </div>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+
+        const firebaseConfig = { apiKey: "AIzaSyBNy8sZGAKh3Ika7O7F-NLZZZWAU-j2B0A", authDomain: "cashcoinser.firebaseapp.com", projectId: "cashcoinser", storageBucket: "cashcoinser.appspot.com", messagingSenderId: "179560740788", appId: "1:179560740788:web:4d6f5678e80f86899364e1" };
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const ADMIN_EMAIL = "amir57a6@gmail.com";
+
+        const loader = document.getElementById('loader');
+        const content = document.getElementById('content');
+        const settingsForm = document.getElementById('settings-form');
+        const bonusInput = document.getElementById('referral-bonus');
+        
+        onAuthStateChanged(auth, user => {
+            if (user && user.email === ADMIN_EMAIL) {
+                loadSettings();
+                loader.style.display = 'none';
+                content.style.display = 'block';
+            } else {
+                window.location.href = 'index.html';
+            }
+        });
+
+        async function loadSettings() {
+            const settingsRef = doc(db, "settings", "appConfig");
+            const docSnap = await getDoc(settingsRef);
+            if (docSnap.exists()) {
+                bonusInput.value = docSnap.data().referralBonus || 0;
+            }
+        }
+
+        settingsForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const newBonus = parseFloat(bonusInput.value);
+            if(isNaN(newBonus) || newBonus < 0) return alert("Please enter a valid bonus amount.");
+            try {
+                const settingsRef = doc(db, "settings", "appConfig");
+                await setDoc(settingsRef, { referralBonus: newBonus }, { merge: true });
+                alert("Settings saved successfully!");
+            } catch (error) {
+                alert("Error saving settings: " + error.message);
+            }
+        });
+    </script>
+</body>
+</html>

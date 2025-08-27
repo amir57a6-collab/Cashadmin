@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Admin Dashboard</title><script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');body{font-family:'Inter',sans-serif;background-color:#111827;color:#d1d5db;margin:0}.container{display:flex;min-height:100vh}.sidebar{width:250px;background-color:#1f2937;padding:1.5rem;display:flex;flex-direction:column}.sidebar-header{font-size:1.5rem;font-weight:700;color:#fff;margin-bottom:2rem}.sidebar-nav{flex-grow:1}.sidebar-nav a{display:block;color:#9ca3af;text-decoration:none;padding:.75rem 1rem;border-radius:.5rem;margin-bottom:.5rem;font-weight:500;transition:background-color .2s,color .2s}.sidebar-nav a:hover{background-color:#374151;color:#fff}.sidebar-nav a.active{background-color:#10b981;color:#fff}.sidebar-footer button{width:100%;background:0 0;border:1px solid #4b5563;color:#9ca3af;padding:.75rem 1rem;border-radius:.5rem;text-align:left;font-weight:500;cursor:pointer}.sidebar-footer button:hover{background-color:#374151;color:#fff}.main-content{flex:1;padding:2.5rem;overflow-y:auto}.main-header h1{font-size:2rem;font-weight:700;color:#fff;margin:0}.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:1.5rem;margin-top:2rem}.stat-card{background-color:#1f2937;padding:1.5rem;border-radius:.75rem}.stat-card .title{font-size:.875rem;color:#9ca3af;margin:0}.stat-card .value{font-size:2.25rem;font-weight:700;color:#fff;margin-top:.5rem}.charts-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(400px,1fr));gap:1.5rem;margin-top:2.5rem}.chart-card{background-color:#1f2937;padding:1.5rem;border-radius:.75rem}.chart-card h2{font-size:1.125rem;font-weight:600;color:#fff;margin:0 0 1.5rem}</style>
+</head>
+<body>
+    <div class="container">
+        <aside class="sidebar">
+            <div>
+                <h1 class="sidebar-header">Task Manager</h1>
+<nav class="sidebar-nav">
+    <a href="dashboard.html">Dashboard</a>
+    <a href="users.html">Users</a>
+    <!-- NEW STRUCTURE FOR TASKS -->
+    <a href="manage-tasks.html">Create Task</a>
+    <a href="task-list.html">Task List</a>
+    <a href="withdrawals.html">Withdrawals</a>
+</nav>
+            </div>
+            <div class="sidebar-footer"><button id="logout-btn">Logout</button></div>
+        </aside>
+        <main class="main-content">
+            <header class="main-header"><h1>Dashboard</h1></header>
+            <div class="stats-grid">
+                <div class="stat-card"><p class="title">Total Users</p><p id="total-users" class="value">0</p></div>
+                <div class="stat-card"><p class="title">Tasks Completed</p><p id="tasks-completed" class="value">0</p></div>
+                <div class="stat-card"><p class="title">Pending Withdrawals</p><p id="pending-withdrawals" class="value">0</p></div>
+            </div>
+            <div class="charts-grid">
+                <div class="chart-card"><h2>User Growth</h2><canvas id="userGrowthChart"></canvas></div>
+                <div class="chart-card"><h2>Task Completion Rate</h2><canvas id="taskCompletionChart"></canvas></div>
+            </div>
+        </main>
+    </div>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
+        import { getFirestore, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+        const firebaseConfig = { apiKey: "AIzaSyBNy8sZGAKh3Ika7O7F-NLZZZWAU-j2B0A", authDomain: "cashcoinser.firebaseapp.com", databaseURL: "https://cashcoinser-default-rtdb.firebaseio.com", projectId: "cashcoinser", storageBucket: "cashcoinser.appspot.com", messagingSenderId: "179560740788", appId: "1:179560740788:web:4d6f5678e80f86899364e1" };
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const ADMIN_EMAIL = "amir57a6@gmail.com";
+        onAuthStateChanged(auth, user => { if (user && user.email === ADMIN_EMAIL) { loadDashboardData(); } else { window.location.href = 'index.html'; } });
+        async function loadDashboardData() {
+            try {
+                const usersSnapshot = await getDocs(collection(db, 'users'));
+                document.getElementById('total-users').textContent = usersSnapshot.size.toLocaleString();
+                const tasksSnapshot = await getDocs(query(collection(db, 'task_submissions'), where("status", "==", "approved")));
+                document.getElementById('tasks-completed').textContent = tasksSnapshot.size.toLocaleString();
+                const withdrawalsSnapshot = await getDocs(query(collection(db, 'withdrawals'), where("status", "==", "pending")));
+                document.getElementById('pending-withdrawals').textContent = withdrawalsSnapshot.size.toLocaleString();
+            } catch (error) { console.error("Error loading dashboard data:", error); alert("Could not load dashboard data. Check console for errors. This is likely a Firestore Rules issue."); }
+        }
+        document.getElementById('logout-btn').addEventListener('click', () => { signOut(auth); });
+    </script>
+    <script>
+        const chartOptions={scales:{y:{beginAtZero:!0,grid:{color:"#374151"},ticks:{color:"#9CA3AF"}},x:{grid:{color:"#374151"},ticks:{color:"#9CA3AF"}}},plugins:{legend:{labels:{color:"#9CA3AF"}}}};new Chart(document.getElementById("userGrowthChart").getContext("2d"),{type:"line",data:{labels:["Jan","Feb","Mar","Apr","May","Jun","Jul"],datasets:[{label:"New Users",data:[65,59,80,81,56,55,120],borderColor:"#10B981",backgroundColor:"rgba(16, 185, 129, 0.2)",fill:!0,tension:.4}]},options:chartOptions});new Chart(document.getElementById("taskCompletionChart").getContext("2d"),{type:"bar",data:{labels:["Jan","Feb","Mar","Apr","May","Jun","Jul"],datasets:[{label:"Tasks Completed",data:[250,310,405,380,450,420,500],backgroundColor:"#10B981"}]},options:chartOptions});
+    </script>
+</body>
+</html>
