@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Manage Withdrawals</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body{font-family:'Inter',sans-serif;background-color:#111827;color:#d1d5db;margin:0}
+        .loading-spinner{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);border:4px solid #374151;border-top:4px solid #10b981;border-radius:50%;width:40px;height:40px;animation:spin 1s linear infinite}
+        .content-wrapper{display:none}
+        .container{display:flex;min-height:100vh}
+        .sidebar{width:250px;background-color:#1f2937;padding:1.5rem}
+        .sidebar-header{font-size:1.5rem;font-weight:700;color:#fff;margin-bottom:2rem}
+        .sidebar-nav a{display:block;color:#9ca3af;text-decoration:none;padding:.75rem 1rem;border-radius:.5rem;margin-bottom:.5rem;font-weight:500}
+        .sidebar-nav a.active{background-color:#10b981;color:#fff}
+        .main-content{flex:1;padding:2.5rem;overflow-y:auto}
+        .main-header h1{font-size:2rem;font-weight:700;color:#fff;margin:0}
+        .main-header p{color:#9ca3af;margin-top:.5rem}
+        .tabs{border-bottom:1px solid #374151;margin-top:2rem}
+        .tabs button{background:0 0;border:none;color:#9ca3af;padding:1rem 1.5rem;cursor:pointer;font-size:1rem;font-weight:500;border-bottom:2px solid transparent}
+        .tabs button.active{color:#10b981;border-bottom-color:#10b981}
+        .data-table{width:100%;border-collapse:collapse;background-color:#1f2937;margin-top:1.5rem;border-radius:.75rem;overflow:hidden}
+        .data-table td,.data-table th{padding:1rem 1.5rem;text-align:left;vertical-align: middle;}
+        .data-table thead{background-color:#374151}
+        .data-table th{font-weight:600;color:#fff}
+        .data-table tbody tr{border-bottom:1px solid #374151}
+        .action-btn{color:#fff;border:none;padding:.5rem 1rem;border-radius:.5rem;cursor:pointer;font-size:0.875rem;margin-right:.5rem;background-color:#3b82f6}
+        .approve-btn{background-color:#10b981}
+        .reject-btn{background-color:#ef4444}
+        .modal{position:fixed;z-index:100;left:0;top:0;width:100%;height:100%;background-color:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center}
+        .modal-content{background-color:#1f2937;color:#eaeaea;padding:2rem;border-radius:.75rem;width:90%;max-width:500px;border:1px solid #374151}
+        .modal-header{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #374151;padding-bottom:1rem;margin-bottom:1rem}
+        .modal-header h2{margin:0;font-size:1.25rem}
+        .modal-close{font-size:2rem;font-weight:700;color:#9ca3af;cursor:pointer;border:none;background:0 0}
+        .detail-item{display:grid;grid-template-columns:120px 1fr;padding:.5rem 0;font-size:.9rem}
+        .detail-item strong{color:#9ca3af}
+        @keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+    </style>
+</head>
+<body>
+    <div class="loading-spinner" id="loader"></div>
+    <div class="content-wrapper" id="content">
+        <div class="container">
+            <aside class="sidebar">
+                <h1 class="sidebar-header">Task Manager</h1>
+                <nav class="sidebar-nav">
+                    <a href="dashboard.html">Dashboard</a><a href="users.html">Users</a><a href="manage-tasks.html">Create Task</a><a href="task-list.html">Task List</a><a href="withdrawals.html" class="active">Withdrawals</a><a href="settings.html">Settings</a>
+                </nav>
+            </aside>
+            <main class="main-content">
+                <header class="main-header">
+                    <h1>Withdrawals</h1><p>Manage user withdrawal requests</p>
+                </header>
+                <div class="tabs">
+                    <button id="pending-tab" class="active">Pending</button><button id="completed-tab">Completed</button>
+                </div>
+                <table class="data-table">
+                    <thead><tr><th>User Email</th><th>Amount</th><th>Method</th><th>Requested On</th><th>Actions</th></tr></thead>
+                    <tbody id="withdrawals-table-body"></tbody>
+                </table>
+            </main>
+        </div>
+    </div>
+    <div id="details-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header"><h2>Withdrawal Details</h2><button class="modal-close" id="modal-close-btn">&times;</button></div>
+            <div id="modal-body">
+                <div class="detail-item"><strong>User Name:</strong> <span id="detail-name"></span></div>
+                <div class="detail-item"><strong>User Email:</strong> <span id="detail-email"></span></div>
+                <hr style="border-color:#374151;margin:1rem 0;">
+                <div class="detail-item"><strong>Amount:</strong> <span id="detail-amount"></span></div>
+                <div class="detail-item"><strong>Method:</strong> <span id="detail-method"></span></div>
+                <div class="detail-item"><strong>Account #:</strong> <span id="detail-account"></span></div>
+                <div class="detail-item"><strong>Phone #:</strong> <span id="detail-phone"></span></div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
+        import { getFirestore, collection, query, where, orderBy, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+        import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-functions.js";
+
+        const firebaseConfig = { apiKey: "AIzaSyBNy8sZGAKh3Ika7O7F-NLZZZWAU-j2B0A", authDomain: "cashcoinser.firebaseapp.com", projectId: "cashcoinser", storageBucket: "cashcoinser.appspot.com", messagingSenderId: "179560740788", appId: "1:179560740788:web:4d6f5678e80f86899364e1" };
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const functions = getFunctions(app);
+        const processWithdrawal = httpsCallable(functions, 'processWithdrawal');
+        
+        const ADMIN_EMAIL = "amir57a6@gmail.com";
+        const loader = document.getElementById('loader');
+        const content = document.getElementById('content');
+        const tableBody = document.getElementById('withdrawals-table-body');
+        const modal = document.getElementById('details-modal');
+        const closeModalBtn = document.getElementById('modal-close-btn');
+        let currentStatus = 'pending';
+
+        onAuthStateChanged(auth, user => {
+            if (user && user.email === ADMIN_EMAIL) {
+                loadWithdrawals(currentStatus);
+                loader.style.display = 'none';
+                content.style.display = 'block';
+            } else {
+                window.location.href = 'index.html';
+            }
+        });
+
+        async function loadWithdrawals(status) {
+            tableBody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:2rem;">Loading...</td></tr>`;
+            const q = query(collection(db, "withdrawals"), where("status", "==", status), orderBy("requestedAt", "desc"));
+            const querySnapshot = await getDocs(q);
+            if (querySnapshot.empty) { tableBody.innerHTML = `<tr><td colspan="5" style="text-align:center;">No ${status} requests found.</td></tr>`; return; }
+            let rowsHtml = '';
+            for (const docSnap of querySnapshot.docs) {
+                const req = docSnap.data();
+                const userDoc = await getDoc(doc(db, "users", req.userId));
+                const userEmail = userDoc.exists() ? userDoc.data().email : 'Unknown User';
+                let actionsHtml = `<button class="action-btn" data-reqid="${docSnap.id}" data-userid="${req.userId}">Details</button>`;
+                if (status === 'pending') {
+                    actionsHtml += `<button class="action-btn approve-btn" data-id="${docSnap.id}" data-userid="${req.userId}" data-amount="${req.amount}">Approve</button>
+                                    <button class="action-btn reject-btn" data-id="${docSnap.id}" data-userid="${req.userId}" data-amount="${req.amount}">Reject</button>`;
+                } else {
+                    actionsHtml += `<span>Processed</span>`;
+                }
+
+                rowsHtml += `
+                    <tr>
+                        <td>${userEmail}</td>
+                        <td>$${req.amount.toFixed(2)}</td>
+                        <td>${req.method}</td>
+                        <td>${new Date(req.requestedAt.seconds * 1000).toLocaleDateString()}</td>
+                        <td>${actionsHtml}</td>
+                    </tr>`;
+            }
+            tableBody.innerHTML = rowsHtml;
+        }
+
+        tableBody.addEventListener('click', async e => {
+            const target = e.target;
+            const reqId = target.dataset.reqid;
+            const withdrawalId = target.dataset.id;
+
+            if (reqId) { // Open Details Modal
+                const userSnap = await getDoc(doc(db, "users", target.dataset.userid));
+                const reqSnap = await getDoc(doc(db, "withdrawals", reqId));
+                if (userSnap.exists() && reqSnap.exists()) {
+                    const uData = userSnap.data();
+                    const rData = reqSnap.data();
+                    document.getElementById('detail-name').textContent = uData.name;
+                    document.getElementById('detail-email').textContent = uData.email;
+                    document.getElementById('detail-amount').textContent = `$${rData.amount.toFixed(2)}`;
+                    document.getElementById('detail-method').textContent = rData.method;
+                    document.getElementById('detail-account').textContent = rData.accountNumber;
+                    document.getElementById('detail-phone').textContent = rData.phoneNumber;
+                    modal.style.display = 'flex';
+                }
+            } else if (withdrawalId) { // Process Approve/Reject
+                const isApprove = target.classList.contains('approve-btn');
+                const isReject = target.classList.contains('reject-btn');
+                if (isApprove || isReject) {
+                    const newStatus = isApprove ? 'approved' : 'rejected';
+                    if (!confirm(`Are you sure you want to ${newStatus} this request?`)) return;
+                    target.disabled = true;
+                    target.textContent = '...';
+                    try {
+                        await processWithdrawal({ withdrawalId, newStatus, userId: target.dataset.userid, amount: parseFloat(target.dataset.amount) });
+                        alert(`Request has been ${newStatus}.`);
+                        loadWithdrawals(currentStatus);
+                    } catch (error) {
+                        console.error("Action failed: ", error);
+                        alert("An error occurred: " + error.message);
+                        target.disabled = false;
+                        target.textContent = isApprove ? 'Approve' : 'Reject';
+                    }
+                }
+            }
+        });
+
+        closeModalBtn.onclick = () => { modal.style.display = 'none'; };
+        window.onclick = (e) => { if (e.target == modal) modal.style.display = 'none'; };
+        document.getElementById('pending-tab').addEventListener('click', () => { currentStatus = 'pending'; document.getElementById('pending-tab').classList.add('active'); document.getElementById('completed-tab').classList.remove('active'); loadWithdrawals(currentStatus); });
+        document.getElementById('completed-tab').addEventListener('click', () => { currentStatus = 'approved'; document.getElementById('completed-tab').classList.add('active'); document.getElementById('pending-tab').classList.remove('active'); loadWithdrawals(currentStatus); });
+    </script>
+</body>
+</html>
