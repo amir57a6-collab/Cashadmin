@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Edit Task</title>
+    <style>@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');body{font-family:'Inter',sans-serif;background-color:#111827;color:#d1d5db;margin:0}.loading-spinner{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);border:4px solid #374151;border-top:4px solid #10b981;border-radius:50%;width:40px;height:40px;animation:spin 1s linear infinite}.content-wrapper{display:none}.container{display:flex;min-height:100vh}.sidebar{width:250px;background-color:#1f2937;padding:1.5rem}.sidebar-header{font-size:1.5rem;font-weight:700;color:#fff;margin-bottom:2rem}.sidebar-nav a{display:block;color:#9ca3af;text-decoration:none;padding:.75rem 1rem;border-radius:.5rem;margin-bottom:.5rem;font-weight:500}.sidebar-nav a.active{background-color:#10b981;color:#fff}.main-content{flex:1;padding:2.5rem;overflow-y:auto}.main-header h1{font-size:2rem;font-weight:700;color:#fff;margin:0}.form-container{background-color:#1f2937;padding:2rem;border-radius:.75rem;margin-top:2rem;max-width:700px}.form-group{margin-bottom:1.5rem}.form-group label{display:block;font-weight:500;color:#9ca3af;margin-bottom:.5rem}.form-group input,.form-group select,.form-group textarea{width:100%;padding:.75rem;background-color:#374151;border:1px solid #4b5563;border-radius:.5rem;color:#d1d5db;box-sizing:border-box}.form-group textarea{min-height:100px;resize:vertical}.submit-btn{background-color:#10b981;color:#fff;border:none;padding:.75rem 1.5rem;border-radius:.5rem;cursor:pointer;font-weight:600}@keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}</style>
+</head>
+<body>
+    <div class="loading-spinner" id="loader"></div>
+    <div class="content-wrapper" id="content">
+        <div class="container">
+            <aside class="sidebar">
+                <h1 class="sidebar-header">Task Manager</h1>
+                <nav class="sidebar-nav">
+                    <a href="dashboard.html">Dashboard</a><a href="users.html">Users</a><a href="manage-tasks.html">Create Task</a><a href="task-list.html" class="active">Task List</a><a href="withdrawals.html">Withdrawals</a><a href="settings.html">Settings</a>
+                </nav>
+            </aside>
+            <main class="main-content">
+                <header class="main-header"><h1>Edit Task</h1></header>
+                <form class="form-container" id="task-form">
+                    <div class="form-group"><label for="task-title">Task Title</label><input type="text" id="task-title" required></div>
+                    <div class="form-group"><label for="task-desc">Description</label><textarea id="task-desc" required></textarea></div>
+                    <div class="form-group"><label for="task-reward">Reward Amount</label><input type="number" id="task-reward" step="0.01" required></div>
+                    <div class="form-group"><label for="task-image-url">Image URL (Optional)</label><input type="url" id="task-image-url"></div>
+                    <div class="form-group"><label for="task-link">Task Link (Redirect URL)</label><input type="url" id="task-link" required></div>
+                    <div class="form-group"><label for="task-category">Category (for icon)</label>
+                        <select id="task-category"><option value="default">Default</option><option value="video">Video</option><option value="download">Download</option><option value="survey">Survey</option></select>
+                    </div>
+                    <div class="form-group"><label for="task-instructions">Instructions</label><textarea id="task-instructions" required></textarea></div>
+                    <button type="submit" id="update-task-btn" class="submit-btn">Update Task</button>
+                </form>
+            </main>
+        </div>
+    </div>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
+        import { getFirestore, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+        const firebaseConfig = { apiKey: "AIzaSyBNy8sZGAKh3Ika7O7F-NLZZZWAU-j2B0A", authDomain: "cashcoinser.firebaseapp.com", projectId: "cashcoinser", storageBucket: "cashcoinser.appspot.com", messagingSenderId: "179560740788", appId: "1:179560740788:web:4d6f5678e80f86899364e1" };
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const ADMIN_EMAIL = "amir57a6@gmail.com";
+        const loader = document.getElementById('loader'), content = document.getElementById('content'), taskForm = document.getElementById('task-form');
+        let taskId = null;
+        onAuthStateChanged(auth, user => {
+            if (user && user.email === ADMIN_EMAIL) {
+                taskId = new URLSearchParams(window.location.search).get('id');
+                if (!taskId) { alert('No task ID!'); window.location.href = 'task-list.html'; return; }
+                loadTaskData();
+            } else { window.location.href = 'index.html'; }
+        });
+        async function loadTaskData() {
+            const taskRef = doc(db, "tasks", taskId);
+            const docSnap = await getDoc(taskRef);
+            if (docSnap.exists()) {
+                const task = docSnap.data();
+                document.getElementById('task-title').value = task.title; document.getElementById('task-desc').value = task.description;
+                document.getElementById('task-reward').value = task.reward; document.getElementById('task-image-url').value = task.imageUrl || '';
+                document.getElementById('task-link').value = task.taskLink || ''; document.getElementById('task-category').value = task.category;
+                document.getElementById('task-instructions').value = task.instructions;
+                loader.style.display = 'none'; content.style.display = 'block';
+            } else { alert("Task not found!"); window.location.href = 'task-list.html'; }
+        }
+        taskForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const updatedData = {
+                title: document.getElementById('task-title').value, description: document.getElementById('task-desc').value,
+                reward: parseFloat(document.getElementById('task-reward').value), imageUrl: document.getElementById('task-image-url').value || "",
+                taskLink: document.getElementById('task-link').value, category: document.getElementById('task-category').value,
+                instructions: document.getElementById('task-instructions').value,
+            };
+            const updateButton = document.getElementById('update-task-btn');
+            updateButton.disabled = true; updateButton.textContent = 'Updating...';
+            try { await updateDoc(doc(db, "tasks", taskId), updatedData); alert("Task updated!"); window.location.href = 'task-list.html';
+            } catch (error) { alert("Error: " + error.message); updateButton.disabled = false; updateButton.textContent = 'Update Task'; }
+        });
+    </script>
+</body>
+</html>
