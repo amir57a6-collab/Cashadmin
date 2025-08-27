@@ -15,7 +15,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
-        const firebaseConfig = { apiKey: "AIzaSyBNy8sZGAKh3Ika7O7F-NLZZZWAU-j2B0A", authDomain: "cashcoinser.firebaseapp.com", projectId: "cashcoinser", storageBucket: "cashcoinser.appspot.com", messagingSenderId: "179560740788", appId: "1:179560740788:web:4d6f5678e80f86899364e1" };
+        const firebaseConfig = { apiKey: "AIzaSyBNy8sZGAKh3Ika7O7F-NLZZZWAU-j2B0A", authDomain: "cashcoinser.firebaseapp.com", databaseURL: "https://cashcoinser-default-rtdb.firebaseio.com", projectId: "cashcoinser", storageBucket: "cashcoinser.appspot.com", messagingSenderId: "179560740788", appId: "1:179560740788:web:4d6f5678e80f86899364e1" };
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const ADMIN_EMAIL = "amir57a6@gmail.com";
